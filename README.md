@@ -1,52 +1,107 @@
-# beepserv
-A tweak for jailbroken iPhones that can be connected with Beeper Mini to provide phone number registration functionality
+# beepserv (spoofing fork)
 
-## Note
-This is a rewrite of the original [beepserv](https://github.com/beeper/phone-registration-provider) with some code from the original.
+A tweak for jailbroken iPhones that provides iMessage **registration data** (validation
+data) to an off-device client over Beeper's relay.
 
-There is also [JJTech's ValidationRelay](https://github.com/JJTech0130/ValidationRelay) now which allows you to use non-jailbroken iOS devices and can be more reliable if you're having issues with this tweak.
+This fork makes beepserv a **standalone device-identity spoofing provider**: it generates
+its own *format-valid* iPhone identity on the phone, forces validation onto the software
+Absinthe (`baa:false`) path, and folds the spoofed serial into both the reported
+version-info and the minted validation-data blob. This replaces the two external research
+tweaks it grew out of (`idsbaa` for `baa:false`, `MGSpoof` for the gestalt serial) — now
+everything happens inside beepserv. The off-device client (e.g. rustpush) is unchanged and
+only needs the relay code.
 
-Joshua Higgins' blog has a [great guide](https://joshuafhiggins.github.io/post/the-ultimate-beeper-guide-2024/) on how to get iMessage working with Beeper.
+> Fork of [thatmarcel/beepserv-rewrite](https://github.com/thatmarcel/beepserv-rewrite),
+> itself a rewrite of the original [beepserv](https://github.com/beeper/phone-registration-provider).
+> See `SPOOF.md` for integration notes and `iphone/beepserv-fork/SPOOF_FORK.md` (in the
+> rustpush workspace) for the full background on BAA, why `baa:false` is required, and how
+> validation-data is used.
 
-The tweak is now split into 4 parts:
-- **Application**: An app that shows the registration code, logs, and allows state notifications to be turned on or off
-- **Controller**: A launch daemon that manages basically everything, including the relay connection
-- **NotificationHelper**: This hooks into `SpringBoard` and sends local notifications
-- **IdentityServices**: The part that hooks into `identityservicesd` and handles the generation of validation data
+## What this fork adds
+- **`IdentityServices/bp_spoof.x`** (injected into `identityservicesd`):
+  - hooks `MGCopyAnswer` so the NAC / `nac_sign` routine reads the spoofed
+    `SerialNumber` / `UniqueDeviceID` / `IMEI` instead of the real fused-in values;
+  - forces `baa:false` (`IDSValidationQueue._sendBAAValidationRequestIfNeededForSubsystem:`
+    suppressed; `IDSValidationSession.isUsingBAA/_shouldUseBAACertOption/_shouldUseBAAOnly`
+    → `NO`) so the spoofable gestalt serial is folded into the blob, not the SEP-attested one.
+- **`Controller/BPDeviceIdentifiers`**: an on-phone generator (valid Apple serial
+  `PPP Y W SSS CCCC`, Luhn IMEI, 40-hex UDID; plant + config + IMEI TAC seeded from the
+  **real** device so the tuple stays a plausible model) and `+ensureSpoofIdentity`
+  (generate-if-missing / rotate-on-flag). version-info `serial_number` + `unique_device_id`
+  now read the spoof so they match the minted blob.
+- **`Controller/main.m`**: generates/rotates the identity at daemon startup.
 
-The app is pretty simple and does not have an icon yet.
+### Spoof configuration
+Source of truth is `/var/mobile/.beepserv_spoof.plist` (rootless:
+`/var/jb/var/mobile/.beepserv_spoof.plist`), written by the Controller:
+
+| key | meaning |
+| --- | --- |
+| `SerialNumber` | spoofed 12-char serial |
+| `UniqueDeviceID` | spoofed 40-hex UDID |
+| `InternationalMobileEquipmentIdentity` | spoofed IMEI |
+| `Enabled` | optional bool, default `YES` when the file exists |
+
+If the file is absent or `Enabled=NO`, every hook is a transparent passthrough and beepserv
+behaves like stock (real identity, `baa:true`).
+
+## The 4 components
+- **Application**: app showing the registration code, logs, and notification toggle
+- **Controller**: launch daemon managing the relay connection (+ identity generation here)
+- **NotificationHelper**: hooks `SpringBoard` to send local notifications
+- **IdentityServices**: hooks `identityservicesd`, generates validation data (+ the spoof)
 
 ## Building
-You need to have [Theos](https://theos.dev/docs/installation) installed.
+Requires [Theos](https://theos.dev/docs/installation) (`$THEOS/bin/update-theos` to update).
 
-Also make sure Theos is up-to-date by running `$THEOS/bin/update-theos` (or `make update-theos`).
+```sh
+git submodule update --init --recursive
+make clean package FINALPACKAGE=1            # rootful  -> ./packages/*.deb
+# or
+make clean package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
+```
 
-### Rootful
-`make clean package FINALPACKAGE=1`
-
-The Makefiles currently assume you have Xcode 11.7 installed at `/Applications/Xcode_11.7.app` when packaging for rootful to ensure compatibility with A12+ devices on iOS 12.0-13.7 ([more here](https://theos.dev/docs/arm64e-deployment)). You can either download this version from Apple or edit the Makefiles if you want to build with a different version.
-
-### Rootless
-`make clean package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1`
+This fork's Makefiles build against the Theos-managed SDK/toolchain
+(`iphone:clang:latest:14.0`, `arm64`) — no local Xcode is required. (Upstream hardcoded a
+macOS `Xcode_11.7` path for arm64e/iOS 12-13.7 compatibility; if you need that, restore the
+original `PREFIX`/`SYSROOT` block and add `arm64e` back to `ARCHS`.)
 
 ## Usage
-This tweak should automatically run in the background, connected to Beeper's relay service, available to facilitate registering your Android's phone number with Apple.
+The tweak runs in the background, connected to the relay, ready to provide validation data.
 
-To start this registration process, open the beepserv app, and enter the displayed registration code into Beeper Mini, and it should automatically start the registration process.
+Open the beepserv app to read the registration code (or SSH in and run
+`cat /var/mobile/.beepserv_state`, rootless `cat /var/jb/var/mobile/.beepserv_state`).
+Give that code to your off-device client.
 
-If you cannot find the code, SSH into the device and run `cat /var/mobile/.beepserv_state` (rootful) or `cat /var/jb/var/mobile/.beepserv_state` (rootless) to view the registration code.
+### Rotate to a new device identity
+```sh
+# on the phone
+touch /var/mobile/.beepserv_rotate && killall -9 beepservd identityservicesd
+```
+On the next start the Controller generates a fresh valid identity, persists it, and clears
+the flag (the restart also flushes identityservicesd's cached Absinthe cert). Then re-pull
+version-info on the client (e.g. rustpush: `rm -f hwconfig.plist` before `--register`) so
+the new serial propagates. The relay pairing in `.beepserv_state` is preserved across this.
 
 ### Using a self-hosted relay
-If you are hosting your own [registration relay](https://github.com/beeper/registration-relay) server instead of using the default one, run the commands below on your device (replacing the URL with the one you want to use).
+Replace the URL with your own [registration relay](https://github.com/beeper/registration-relay):
 
-#### Rootful
-1. `launchctl unload /Library/LaunchDaemons/com.beeper.beepservd.plist`
-2. `echo "https://registration-relay.beeper.com/api/v1/provider" > /var/mobile/.beepserv_relay_url`
-3. `rm -f /var/mobile/.beepserv_state`
-4. `launchctl load /Library/LaunchDaemons/com.beeper.beepservd.plist`
+**Rootful**
+```sh
+launchctl unload /Library/LaunchDaemons/com.beeper.beepservd.plist
+echo "https://registration-relay.beeper.com/api/v1/provider" > /var/mobile/.beepserv_relay_url
+rm -f /var/mobile/.beepserv_state
+launchctl load /Library/LaunchDaemons/com.beeper.beepservd.plist
+```
 
-#### Rootless
-1. `launchctl unload /var/jb/Library/LaunchDaemons/com.beeper.beepservd.plist`
-2. `echo "https://registration-relay.beeper.com/api/v1/provider" > /var/jb/var/mobile/.beepserv_relay_url`
-3. `rm -f /var/jb/var/mobile/.beepserv_state`
-4. `launchctl load /var/jb/Library/LaunchDaemons/com.beeper.beepservd.plist`
+**Rootless**
+```sh
+launchctl unload /var/jb/Library/LaunchDaemons/com.beeper.beepservd.plist
+echo "https://registration-relay.beeper.com/api/v1/provider" > /var/jb/var/mobile/.beepserv_relay_url
+rm -f /var/jb/var/mobile/.beepserv_state
+launchctl load /var/jb/Library/LaunchDaemons/com.beeper.beepservd.plist
+```
+
+## Credits
+Original [beepserv](https://github.com/beeper/phone-registration-provider) by Beeper
+(James Gill, June Welker); rewrite by [thatmarcel](https://github.com/thatmarcel/beepserv-rewrite).
