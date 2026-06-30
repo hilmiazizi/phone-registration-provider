@@ -1,14 +1,12 @@
-ARCHS = arm64 arm64e
+# iPhone 7 (A10) is arm64-only; build against the theos-managed SDK/toolchain on
+# Linux. The upstream rootful branch hardcodes a macOS Xcode 11.7 path that does
+# not exist here, so derive everything from TARGET like idsbaa/MGSpoof do.
+ARCHS = arm64
 
 ifeq ($(THEOS_PACKAGE_SCHEME), rootless)
 	TARGET := iphone:clang:latest:15.0
 else
-	TARGET_OS_DEPLOYMENT_VERSION = 10.0
-	OLDER_XCODE_PATH=/Applications/Xcode_11.7.app
-	PREFIX=$(OLDER_XCODE_PATH)/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/
-	SYSROOT=$(OLDER_XCODE_PATH)/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk
-	SDKVERSION = 13.7
-	INCLUDE_SDKVERSION = 13.7
+	TARGET := iphone:clang:latest:14.0
 endif
 
 include $(THEOS)/makefiles/common.mk
@@ -42,4 +40,4 @@ else
 	$(ECHO_NOTHING) mv $(THEOS_STAGING_DIR)/Library/LaunchDaemons/com.beeper.beepservd-rootful.plist $(THEOS_STAGING_DIR)/Library/LaunchDaemons/com.beeper.beepservd.plist $(ECHO_END)
 endif
 	$(ECHO_NOTHING) mv $(THEOS_STAGING_DIR)/usr/libexec/BeepservController $(THEOS_STAGING_DIR)/usr/libexec/beepservd $(ECHO_END)
-	$(ECHO_NOTHING) $(FAKEROOT) chown root:wheel $(THEOS_STAGING_DIR)/Library/LaunchDaemons/com.beeper.beepservd.plist $(ECHO_END)
+	$(ECHO_NOTHING) $(FAKEROOT) chown 0:0 $(THEOS_STAGING_DIR)/Library/LaunchDaemons/com.beeper.beepservd.plist $(ECHO_END)

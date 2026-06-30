@@ -2,6 +2,7 @@
 #import <stdio.h>
 #import "./Logging.h"
 #import "BPSocketConnectionManager.h"
+#import "BPDeviceIdentifiers.h"
 #import "../Shared/NSDistributedNotificationCenter.h"
 
 int main(int argc, char *argv[], char *envp[]) {
@@ -22,6 +23,10 @@ int main(int argc, char *argv[], char *envp[]) {
 				bp_log_impl_internal(kModuleNameIdentityServices, logString, false);
 			}];
 		}
+		
+		// SPOOF: make sure a format-valid device identity exists (and honour a pending
+		// rotate) before we connect, so version-info + the minted blob share one serial.
+		[BPDeviceIdentifiers ensureSpoofIdentity];
 		
 		[BPSocketConnectionManager.sharedInstance startConnection];
 		
