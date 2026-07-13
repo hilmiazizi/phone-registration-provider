@@ -1,0 +1,9 @@
+Package: com.local.mgspoof
+Name: MGSpoof
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Scoped MobileGestalt identity rotation for IDS/APNs daemons (test harness)
+Maintainer: local
+Author: local
+Section: Tweaks
+Depends: mobilesubstrate

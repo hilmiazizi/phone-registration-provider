@@ -1,0 +1,8 @@
+Package: com.local.gestalt
+Name: gestalt
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Minimal MGCopyAnswer CLI reader (verifier for MGSpoof)
+Maintainer: local
+Author: local
+Section: Utilities

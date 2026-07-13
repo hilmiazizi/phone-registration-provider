@@ -1,0 +1,5 @@
+#!/bin/sh
+# Compatibility wrapper — product CLI lives in ops/relayrotate.
+# Prefer installing /var/root/relayrotate from ops/ (see INSTALL.md).
+DIR=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+exec "$DIR/ops/relayrotate" "$@"

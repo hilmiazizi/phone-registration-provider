@@ -123,7 +123,7 @@ BPValidationDataManager* _sharedInstance;
         }
         
         self.validationDataResponseTimer = [BPTimer
-            scheduleTimerWithTimeInterval: 20
+            scheduleTimerWithTimeInterval: 90
             completion: ^{
                 [self handleValidationDataRequestDidNotReceiveResponse];
             }

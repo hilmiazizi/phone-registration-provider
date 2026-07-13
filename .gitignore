@@ -1,7 +1,30 @@
+# Theos / build
 .theos/
 packages/
-**/.DS_Store
+**/packages/*.deb
+tools/*/packages/
+research/*/packages/
 
+# Nested / duplicate trees (see research/SPOOF_FORK.md for background)
+research/beepserv-fork/
+
+# OS junk
+**/.DS_Store
+**/__pycache__/
 .cache/
 .ccls-cache/
 compile_commands.json
+
+# Large / sensitive research artifacts (keep source, not dumps)
+research/archive/
+research/re/
+docs/poc/logcap/
+docs/poc/backup_*/
+docs/poc/*.tar
+docs/poc/*.tar.gz
+
+# Local binaries / captures
+*.bin
+*.bin.b64
+*.log
+*.deb.bak

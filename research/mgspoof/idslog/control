@@ -1,0 +1,8 @@
+Package: com.local.idslog
+Name: idslog
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: SSH-friendly unified log streamer for IDS/iMessage debugging
+Maintainer: local
+Author: local
+Section: Utilities

@@ -1,5 +1,8 @@
 # beepserv-rewrite spoof fork
 
+> Integration notes for the spoofing fork. **Operators:** start at
+> [INSTALL.md](INSTALL.md) / [FARM.md](FARM.md) / [ARCHITECTURE.md](ARCHITECTURE.md).
+
 Fork of `thatmarcel/beepserv-rewrite` that makes beepserv a **standalone** spoofing
 provider: it generates its own format-valid iPhone identity on the phone, forces the
 validation-data onto the `baa:false` (software Absinthe) path, and folds the spoofed
@@ -7,7 +10,7 @@ serial into both the reported version-info and the minted blob. This replaces th
 external research tweaks (`idsbaa` + `MGSpoof`). rustpush is unchanged — it only holds
 the relay code.
 
-See `../beepserv-fork/SPOOF_FORK.md` for the full background (what BAA is, why we force
+See `research/beepserv-fork/SPOOF_FORK.md` for the full background (what BAA is, why we force
 `baa:false`, how rustpush uses validation-data).
 
 ## What was added

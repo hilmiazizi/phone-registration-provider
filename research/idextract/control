@@ -1,0 +1,9 @@
+Package: com.zeroday.idextract
+Name: idextract
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Dump the IDS identity (keys/cert/token) from inside identityservicesd
+Maintainer: zeroday
+Author: zeroday
+Section: Tweaks
+Depends: ellekit

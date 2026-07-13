@@ -1,0 +1,9 @@
+Package: com.zeroday.idsbaa
+Name: idsbaa
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Force iMessage validation onto the software Absinthe (baa:false) path
+Maintainer: zeroday
+Author: zeroday
+Section: Tweaks
+Depends: ellekit

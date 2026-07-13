@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BluetoothAddress</key>
+	<string>f0:18:98:e8:2f:ef</string>
+	<key>DieID</key>
+	<integer>656896267385</integer>
+	<key>EthernetMacAddress</key>
+	<string>f0:18:98:e8:2f:ee</string>
+	<key>HardwareModel</key>
+	<string>D101AP</string>
+	<key>InternationalMobileEquipmentIdentity</key>
+	<string>354042077696106</string>
+	<key>ProductType</key>
+	<string>iPhone9,3</string>
+	<key>SerialNumber</key>
+	<string>F4J8JN4YHG7K</string>
+	<key>UniqueChipID</key>
+	<integer>618172179407</integer>
+	<key>UniqueDeviceID</key>
+	<string>bf55c153cc38c928438c463168c00866b2b1089b</string>
+	<key>WifiAddress</key>
+	<string>f0:18:98:e8:2f:ee</string>
+</dict>
+</plist>
