@@ -1,4 +1,5 @@
 #import "BPDeviceIdentifiers.h"
+#import "./Logging.h"
 #import <sys/utsname.h>
 #import <sys/sysctl.h>
 #import <sys/stat.h>
@@ -74,13 +75,7 @@ static NSString* bp_real_gestalt(CFStringRef key, NSString* fallback) {
         return [v isKindOfClass: NSString.class] ? v : nil;
     }
 
-    + (void) ensureSpoofIdentity {
-        NSFileManager* fm = NSFileManager.defaultManager;
-        BOOL rotate = [fm fileExistsAtPath: kBPRotateFlagPath];
-        if ([fm fileExistsAtPath: kBPSpoofPlistPath] && !rotate) {
-            return; // keep the current identity
-        }
-
+    + (void) writeFreshSpoofIdentity {
         NSString* realSerial = bp_real_gestalt(CFSTR("SerialNumber"), @"F4JSDXCEHG7K");
         NSString* realImei = bp_real_gestalt(CFSTR("InternationalMobileEquipmentIdentity"), @"359205070000000");
         NSString* tac = realImei.length >= 8 ? [realImei substringToIndex: 8] : @"35920507";
@@ -95,9 +90,28 @@ static NSString* bp_real_gestalt(CFStringRef key, NSString* fallback) {
         if ([identity writeToFile: kBPSpoofPlistPath atomically: YES]) {
             chmod(kBPSpoofPlistPath.fileSystemRepresentation, 0644);
         }
+        cachedIdentifiers = nil;
+        LOG(@"Rotated spoof identity serial=%@", identity[@"SerialNumber"]);
+        [[NSFileManager defaultManager] createFileAtPath:@"/var/mobile/.beepserv_kill"
+                                                contents:[NSData data]
+                                              attributes:nil];
+    }
+
+    + (void) ensureSpoofIdentity {
+        NSFileManager* fm = NSFileManager.defaultManager;
+        BOOL rotate = [fm fileExistsAtPath: kBPRotateFlagPath];
+        if ([fm fileExistsAtPath: kBPSpoofPlistPath] && !rotate) {
+            return;
+        }
+        [self writeFreshSpoofIdentity];
         if (rotate) {
             [fm removeItemAtPath: kBPRotateFlagPath error: nil];
         }
+    }
+
+    + (void) rotateSpoofIdentity {
+        [self writeFreshSpoofIdentity];
+        [NSFileManager.defaultManager removeItemAtPath: kBPRotateFlagPath error: nil];
     }
 
     + (NSDictionary*) get {

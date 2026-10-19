@@ -1,43 +1,25 @@
 # Farm loop — spoof rotate → Beeper / rustpush register
 
-**Every Beeper registration uses a spoofed iPhone identity.** There is no “real serial”
-farm path. Before each Apple ID:
+**Every validation-data request generates a new spoof identity and mints against it.** You do not run `relayrotate` between Apple IDs. `relayrotate` only issues a new relay code.
 
-1. Phone: `/var/root/relayrotate` (new spoof + `baa:false` + new relay code)
-2. Linux: `rustpush-test --register --relay-code=…`
+rustpush calls `get-version-info` first, then `get-validation-data`. The phone rotates on the validation call, and rustpush re-reads version-info immediately after so the serial it registers matches the blob.
 
 Setup: [INSTALL.md](INSTALL.md). Architecture: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Per Apple ID
 
-Phone **unlocked**.
-
-### 1) Spoof rotate (required)
-
-```bash
-ssh mobile@PHONE 'echo SUDO_PASS | sudo -S /var/root/relayrotate'
-```
-
-`relayrotate` always:
-
-| Step | Effect |
-|------|--------|
-| `Enabled=true` | Spoof on (refuses farm passthrough) |
-| `.beepserv_kill` | Force Absinthe `baa:false` so blob uses spoofed serial |
-| `.beepserv_rotate` | New serial / UDID / IMEI |
-| Clear `.beepserv_state` | New relay code |
-| Soft invalidate + restart | Fresh mint; Absinthe ucrt kept |
-
-Copy the printed **serial** and **relay code**. Serial must not be the fused real one.
-
-### 2) Register on Linux (rustpush)
+Phone **unlocked**. No manual rotate.
 
 ```bash
 cd ~/imessage/rustpush
 rm -f hwconfig.plist
 RUST_LOG=info ./target/release/rustpush-test \
-  --register --relay-code=NEW-CODE-HERE
+  --register --relay-code=RELAY-CODE
 ```
+
+The validation request on the phone writes a new serial, UDID, and IMEI, then mints the blob for that identity. rustpush reads version-info again after the mint and registers with that serial.
+
+`relayrotate` is only when you want a **new relay code**. It is not part of each registration.
 
 ```bash
 cargo build --release --bin rustpush-test \
@@ -50,15 +32,15 @@ cargo build --release --bin rustpush-test \
 ./target/release/rustpush-test --export-bbox …
 ```
 
-### 4) Next account
+### Next account
 
-Run `relayrotate` again → new spoof → new `--register`.
+Run `--register` again. The phone rotates on that validation request.
 
 ## Guardrails
 
 | Do | Don't |
 |----|-------|
-| Spoof every cycle via `relayrotate` | Ship version-info / blob with real serial |
+| Let each validation request rotate | Run `relayrotate` between accounts |
 | Keep `Enabled=true` + `.beepserv_kill` | Set `Enabled=false` on farm phones |
 | Soft rotate only | Nuke Accounts3 / IdentityServices / `*-ucrt` |
 | Unlock during mint | Mint while locked |
@@ -68,7 +50,7 @@ Run `relayrotate` again → new spoof → new `--register`.
 
 | Identity | Where | How |
 |----------|-------|-----|
-| Spoofed serial / UDID / IMEI (in validation-data) | iPhone | `relayrotate` |
+| Phone spoof (serial/UDID/IMEI in blob) | iPhone | automatic, on each `get-validation-data` |
 | Anisette `X-Apple-I-MD-M` | rustpush host | per-account `anisette_test/<email>.plist` |
 
 ## Smoke after rotate

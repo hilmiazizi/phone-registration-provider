@@ -8,14 +8,13 @@ It does **not** hard-nuke Accounts / IdentityServices / Absinthe ucrt.
 Install on the iPhone once:
 
 ```bash
-scp ~/imessage/phone-registration-provider/ops/relayrotate mobile@PHONE:/var/mobile/
-ssh mobile@PHONE 'echo SUDO_PASS | sudo -S install -m 755 /var/mobile/relayrotate /var/root/relayrotate'
+# relayrotate is installed by the beepserv deb at /usr/bin/relayrotate
 ```
 
 Run as root (**phone unlocked**):
 
 ```bash
-/var/root/relayrotate
+relayrotate
 ```
 
 Then smoke-test and register — see [FARM.md](../FARM.md).

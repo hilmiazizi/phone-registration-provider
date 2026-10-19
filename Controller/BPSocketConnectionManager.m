@@ -177,14 +177,8 @@ static BPSocketConnectionManager* _sharedInstance;
                 }
                 
                 validationDataRequestIdentifier = requestIdentifier;
-                
-                NSData* validationData = [BPValidationDataManager.sharedInstance getCachedIfPossible];
-                
-                if (validationData) {
-                    [self sendValidationData: validationData error: nil];
-                } else {
-                    [BPValidationDataManager.sharedInstance request];
-                }
+                // Never reuse a blob. request rotates the spoof identity first.
+                [BPValidationDataManager.sharedInstance request];
             },
             kCommandResponse: ^{
                 NSDictionary* data = jsonContents[kData];

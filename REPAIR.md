@@ -31,6 +31,6 @@ Source: [`tools/baawipe`](tools/baawipe), [`tools/dcrtforce`](tools/dcrtforce).
 ## After repair
 
 ```bash
-/var/root/relayrotate
+relayrotate
 # smoke: get-version-info shows spoofed serial; get-validation-data → 200 / ~261B
 ```

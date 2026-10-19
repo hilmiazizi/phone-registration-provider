@@ -2,7 +2,7 @@
 
 | Script | Install path | Role |
 |--------|--------------|------|
-| `relayrotate` | `/var/root/relayrotate` | Soft-rotate spoof identity + `baa:false` + new relay code |
+| `relayrotate` | `/usr/bin/relayrotate` (also shipped in the deb) | Soft-rotate spoof identity + `baa:false` + new relay code |
 
 No Theos build. Copy the script as-is. Requires `com.beeper.beepserv` installed.
 

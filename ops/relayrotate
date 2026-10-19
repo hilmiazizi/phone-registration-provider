@@ -2,8 +2,9 @@
 # relayrotate — soft-rotate spoof identity + relay code for the farm loop.
 # Product path: beepserv-native flags only (no idsbaa required).
 #
+# Installed by the beepserv deb at /usr/bin/relayrotate.
 # Run as root on the iPhone (keep it UNLOCKED on the home screen):
-#   /var/root/relayrotate
+#   relayrotate
 #
 # See FARM.md / INSTALL.md.
 

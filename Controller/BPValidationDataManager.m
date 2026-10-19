@@ -1,6 +1,7 @@
 #import "BPValidationDataManager.h"
 #import "BPSocketConnectionManager.h"
 #import "BPNotificationSender.h"
+#import "BPDeviceIdentifiers.h"
 #import "../Shared/NSDistributedNotificationCenter.h"
 #import "./Logging.h"
 
@@ -81,6 +82,12 @@ BPValidationDataManager* _sharedInstance;
     }
     
     - (void) request {
+        // Each validation hit is a new device. The blob and the next
+        // get-version-info both read this plist.
+        [BPDeviceIdentifiers rotateSpoofIdentity];
+        cachedValidationData = nil;
+        cachedValidationDataExpiryTimestamp = 0;
+
         LOG(@"Requesting new validation data");
         
         [BPNotificationSender sendNotificationWithMessage: @"Requesting new validation data"];

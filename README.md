@@ -12,7 +12,7 @@ is debug-only. Every account cycle starts with [`ops/relayrotate`](ops/relayrota
 | **[FARM.md](FARM.md)** | Every Apple ID: spoof rotate → rustpush `--register` |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Why spoof is mandatory + mint path |
 | **[REPAIR.md](REPAIR.md)** | Optional `baawipe` / `dcrtforce` when Absinthe/DCRT dies |
-| [releases/](releases/) | Production kit: beepserv + repair debs + link to `ops/relayrotate` |
+| [releases/](releases/) | Production kit: beepserv deb (includes `relayrotate`) + repair debs |
 
 Consumer repo: [rustpush](https://github.com/hilmiazizi/rustpush) (Linux/WSL). Protocol-only
 coupling via the relay — see ARCHITECTURE.
@@ -25,7 +25,7 @@ coupling via the relay — see ARCHITECTURE.
 
 ```sh
 # on phone (root, unlocked) — enables spoof, baa:false, new identity + code
-/var/root/relayrotate
+relayrotate
 
 # on Linux
 cd ~/imessage/rustpush

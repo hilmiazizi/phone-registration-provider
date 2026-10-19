@@ -69,7 +69,7 @@ collapses to one hardware identity.
 | `BeepservIdentityServices` | `bp_spoof.x` (gestalt + `baa:false`) + IDS queue mint → `setValidationData:` |
 | App / NotificationHelper | Code display / bulletins |
 
-Ops: **`/var/root/relayrotate`** — every farm cycle starts here.
+Ops: **`relayrotate`** (`/usr/bin/relayrotate`, installed by the deb) — every farm cycle starts here.
 
 ## Mint path (spoofed)
 

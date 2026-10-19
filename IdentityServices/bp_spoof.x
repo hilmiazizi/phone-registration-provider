@@ -69,15 +69,10 @@ static void bp_consume_invalidate_flag(void) {
     bp_consume_invalidate_flag();
 }
 
-// Read once per process; rotation happens by restarting identityservicesd, which
-// reloads this dylib and re-reads the plist (matches the proven MGSpoof behavior).
+// Re-read every call. beepservd writes a new plist on each validation request
+// without restarting identityservicesd.
 static NSDictionary* bp_spoof_map(void) {
-    static NSDictionary* map = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        map = [NSDictionary dictionaryWithContentsOfFile: @"/var/mobile/.beepserv_spoof.plist"] ?: @{};
-    });
-    return map;
+    return [NSDictionary dictionaryWithContentsOfFile: @"/var/mobile/.beepserv_spoof.plist"] ?: @{};
 }
 
 static BOOL bp_spoof_enabled(void) {

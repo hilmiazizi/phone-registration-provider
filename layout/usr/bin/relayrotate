@@ -1,0 +1,242 @@
+#!/bin/sh
+# relayrotate — soft-rotate spoof identity + relay code for the farm loop.
+# Product path: beepserv-native flags only (no idsbaa required).
+#
+# Installed by the beepserv deb at /usr/bin/relayrotate.
+# Run as root on the iPhone (keep it UNLOCKED on the home screen):
+#   relayrotate
+#
+# See FARM.md / INSTALL.md.
+
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo "error: run as root"; exit 1; }
+
+if [ -d /var/jb/var/mobile ]; then
+  MOBILE=/var/jb/var/mobile
+else
+  MOBILE=/var/mobile
+fi
+
+# Flag files are read from /var/mobile by the tweak (not the jb prefix).
+FLAGDIR=/var/mobile
+
+SPOOF="$MOBILE/.beepserv_spoof.plist"
+STATE="$MOBILE/.beepserv_state"
+[ -f "$STATE" ] || STATE="$MOBILE/Library/.beepserv_state"
+ROTATE="$MOBILE/.beepserv_rotate"
+DAEMON=system/com.beeper.beepservd
+
+step() { printf '  \033[36m▸\033[0m %s\n' "$1"; }
+ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; }
+warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
+
+plist_get() {
+  file=$1
+  key=$2
+  [ -f "$file" ] || { echo "(none)"; return; }
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$file" "$key" <<'PY'
+import plistlib, sys
+path, key = sys.argv[1], sys.argv[2]
+with open(path, "rb") as f:
+    d = plistlib.load(f)
+v = d.get(key)
+print(v if v is not None else "(none)")
+PY
+    return
+  fi
+
+  awk -v k="$key" '
+    $0 ~ "<key>" k "</key>" {
+      getline
+      gsub(/.*<string>/, "")
+      gsub(/<\/string>.*/, "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
+show_identity() {
+  title=$1
+  echo
+  printf '\033[1m── %s ──\033[0m\n' "$title"
+  printf '  serial      %s\n' "$(plist_get "$SPOOF" SerialNumber)"
+  printf '  udid        %s\n' "$(plist_get "$SPOOF" UniqueDeviceID)"
+  printf '  imei        %s\n' "$(plist_get "$SPOOF" InternationalMobileEquipmentIdentity)"
+  printf '  enabled     %s\n' "$(plist_get "$SPOOF" Enabled)"
+  printf '  relay code  %s\n' "$(plist_get "$STATE" com.beepserv.code)"
+}
+
+wait_for_process() {
+  proc=$1
+  label=$2
+  tries=${3:-30}
+  while [ "$tries" -gt 0 ]; do
+    if killall -0 "$proc" 2>/dev/null; then
+      ok "$label running"
+      return 0
+    fi
+    tries=$((tries - 1))
+    sleep 1
+  done
+  warn "$proc not running yet"
+  return 1
+}
+
+warn_legacy_tweaks() {
+  found=0
+  for f in \
+    /Library/MobileSubstrate/DynamicLibraries/idsbaa.dylib \
+    /var/jb/Library/MobileSubstrate/DynamicLibraries/idsbaa.dylib \
+    /Library/MobileSubstrate/DynamicLibraries/MGSpoof.dylib \
+    /var/jb/Library/MobileSubstrate/DynamicLibraries/MGSpoof.dylib \
+    /Library/MobileSubstrate/DynamicLibraries/idextract.dylib
+  do
+    if [ -f "$f" ]; then
+      warn "legacy tweak still installed: $f (uninstall for farm phones — see INSTALL.md)"
+      found=1
+    fi
+  done
+  [ "$found" -eq 0 ] || true
+}
+
+# Soft clear only. Never wipe Accounts3 / IdentityServices / Absinthe *-ucrt.
+soft_clear_for_rotate() {
+  echo
+  printf '\033[1m── soft clear (keep Accounts / IdentityServices / Absinthe ucrt) ──\033[0m\n'
+
+  step "arming beepserv baa:false (.beepserv_kill)"
+  rm -f "$FLAGDIR/.beepserv_invalidate"
+  touch "$FLAGDIR/.beepserv_kill"
+  chown mobile:mobile "$FLAGDIR/.beepserv_kill" 2>/dev/null || true
+  # Ensure spoof stays enabled for farm rotates.
+  if [ -f "$SPOOF" ] && command -v python3 >/dev/null 2>&1; then
+    python3 - "$SPOOF" <<'PY' 2>/dev/null || true
+import plistlib, sys
+path = sys.argv[1]
+with open(path, "rb") as f:
+    d = plistlib.load(f)
+if d.get("Enabled") is False:
+    d["Enabled"] = True
+    with open(path, "wb") as f:
+        plistlib.dump(d, f)
+    print("spoof Enabled forced true")
+PY
+  fi
+  ok "beepserv kill armed (ucrt preserved)"
+
+  step "flushing beepservd in-memory validation cache"
+  killall -9 beepservd 2>/dev/null || true
+  ok "beepservd flushed"
+}
+
+restart_ids_for_mint() {
+  step "soft-invalidating cached validation + reloading identityservicesd"
+  if [ ! -s "$SPOOF" ]; then
+    warn "missing $SPOOF — beepserv must generate spoof identity first"
+    return 1
+  fi
+
+  LOG=/var/mobile/beepserv.log
+  MARK=0
+  [ -f "$LOG" ] && MARK=$(wc -l < "$LOG")
+
+  touch "$FLAGDIR/.beepserv_invalidate"
+  chown mobile:mobile "$FLAGDIR/.beepserv_invalidate" 2>/dev/null || true
+  ok "beepserv invalidate flag armed (Absinthe ucrt preserved)"
+
+  killall -9 identityservicesd 2>/dev/null || true
+
+  step "waiting for identityservicesd + NAC hooks"
+  tries=40
+  while [ "$tries" -gt 0 ]; do
+    if [ -f "$LOG" ]; then
+      NEWLOG=$(tail -n +"$((MARK + 1))" "$LOG" 2>/dev/null || true)
+      if echo "$NEWLOG" | grep -q "Done hooking"; then
+        ok "identityservicesd hooks ready"
+        return 0
+      fi
+    fi
+    if ! killall -0 identityservicesd 2>/dev/null; then
+      sleep 1
+      tries=$((tries - 1))
+      continue
+    fi
+    sleep 1
+    tries=$((tries - 1))
+  done
+
+  warn "hooks not confirmed — check: tail -20 /var/mobile/beepserv.log"
+  return 1
+}
+
+kickstart_beepserv() {
+  step "restarting beepservd"
+  if launchctl kickstart -k "$DAEMON" 2>/dev/null; then
+    ok "beepservd restarted"
+    return
+  fi
+  warn "kickstart failed — bootstrapping daemon"
+  launchctl bootstrap system /Library/LaunchDaemons/com.beeper.beepservd.plist 2>/dev/null || true
+  launchctl kickstart -k "$DAEMON"
+  ok "beepservd restarted"
+}
+
+wait_for() {
+  file=$1
+  label=$2
+  tries=${3:-20}
+  while [ "$tries" -gt 0 ]; do
+    if [ -s "$file" ]; then
+      ok "$label ready"
+      return 0
+    fi
+    tries=$((tries - 1))
+    sleep 1
+  done
+  warn "$label not ready ($file)"
+  return 1
+}
+
+echo
+warn "keep phone UNLOCKED on home screen for the whole run"
+warn_legacy_tweaks
+show_identity "current"
+soft_clear_for_rotate
+
+echo
+printf '\033[1m── rotate identity ──\033[0m\n'
+
+step "setting rotate flag"
+touch "$ROTATE"
+chown mobile:mobile "$ROTATE"
+ok "rotate flag set"
+
+kickstart_beepserv
+step "waiting for new spoof identity"
+wait_for "$SPOOF" "spoof plist" 20 || exit 1
+
+step "clearing relay pairing"
+rm -f "$MOBILE/.beepserv_state" "$MOBILE/Library/.beepserv_state"
+STATE="$MOBILE/.beepserv_state"
+ok "old relay code removed"
+
+kickstart_beepserv
+step "waiting for new relay code"
+wait_for "$STATE" "relay state" 30 || sleep 5
+
+restart_ids_for_mint
+
+step "flushing beepservd validation cache"
+killall -9 beepservd 2>/dev/null || true
+kickstart_beepserv
+step "waiting for relay reconnect"
+wait_for "$STATE" "relay state" 30 || sleep 5
+
+show_identity "new"
+echo
+printf '  \033[33m!\033[0m do NOT sign into any Apple ID on this phone\n'
+printf '  \033[33m!\033[0m keep unlocked, then smoke-test validation-data (see FARM.md)\n'
+echo

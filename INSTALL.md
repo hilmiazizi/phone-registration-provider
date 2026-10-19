@@ -4,14 +4,13 @@ This phone exists for one job: mint **spoofed** validation-data for Beeper / rus
 **Spoof + `baa:false` is the only supported mode** — never leave the provider on the
 real fused serial for farm use.
 
-Pinned product build: **`com.beeper.beepserv` 0.2.0-22**
+Pinned product build: **`com.beeper.beepserv` 0.2.0-24**
 
 Production kit (no on-phone build) — see [`releases/`](releases/):
 
 | Artifact | Path | Required? |
 |----------|------|-----------|
-| beepserv | [`releases/com.beeper.beepserv_0.2.0-22_iphoneos-arm.deb`](releases/com.beeper.beepserv_0.2.0-22_iphoneos-arm.deb) | **Yes** |
-| Rotate CLI | [`ops/relayrotate`](ops/relayrotate) → `/var/root/relayrotate` | **Yes** |
+| beepserv | [`releases/com.beeper.beepserv_0.2.0-24_iphoneos-arm.deb`](releases/com.beeper.beepserv_0.2.0-24_iphoneos-arm.deb) | **Yes** — includes `/usr/bin/relayrotate` |
 | baawipe | [`releases/com.zeroday.baawipe_0.1.0_iphoneos-arm.deb`](releases/com.zeroday.baawipe_0.1.0_iphoneos-arm.deb) | Repair only |
 | dcrtforce | [`releases/com.zeroday.dcrtforce_0.1.0_iphoneos-arm.deb`](releases/com.zeroday.dcrtforce_0.1.0_iphoneos-arm.deb) | Repair only |
 
@@ -28,13 +27,11 @@ Also: [ARCHITECTURE.md](ARCHITECTURE.md) · [FARM.md](FARM.md) · [REPAIR.md](RE
 ## Install (once per phone)
 
 ```bash
-scp releases/com.beeper.beepserv_0.2.0-22_iphoneos-arm.deb \
-    ops/relayrotate \
+scp releases/com.beeper.beepserv_0.2.0-24_iphoneos-arm.deb \
     mobile@PHONE:/var/mobile/
 
 ssh mobile@PHONE 'echo SUDO_PASS | sudo -S bash -lc "
-  dpkg -i /var/mobile/com.beeper.beepserv_0.2.0-22_iphoneos-arm.deb
-  install -m 755 /var/mobile/relayrotate /var/root/relayrotate
+  dpkg -i /var/mobile/com.beeper.beepserv_0.2.0-24_iphoneos-arm.deb
   dpkg -r com.zeroday.idsbaa com.local.mgspoof com.zeroday.idextract 2>/dev/null || true
   killall -9 identityservicesd beepservd 2>/dev/null || true
   launchctl kickstart -k system/com.beeper.beepservd
@@ -50,7 +47,7 @@ That is what turns spoof on (`Enabled=true`), arms `baa:false`, and prints a far
 
 ```bash
 # phone unlocked, as root
-/var/root/relayrotate
+relayrotate
 ```
 
 It will:
@@ -105,7 +102,7 @@ curl -sS --max-time 90 -X POST \
 **Pass:** HTTP **200**, base64 decoding to **~261 bytes**.
 
 **Fail:** version-info still shows real serial → spoof off / daemons not restarted; fix with
-`/var/root/relayrotate` again.
+`relayrotate` again.
 
 ## Build from source (maintainers)
 

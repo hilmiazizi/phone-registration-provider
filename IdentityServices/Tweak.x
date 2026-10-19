@@ -256,6 +256,10 @@ static void bp_schedule_primary_mint_timeout(void) {
     ];
 }
 
+@interface IDSValidationSession : NSObject
++ (void)purgeCachedCertsForSubsystemMechanism:(long long)mechanism;
+@end
+
 void bp_start_validation_data_request() {
     if (bp_validation_data_retrieval_using_newer_method_timer) {
         [bp_validation_data_retrieval_using_newer_method_timer invalidate];
@@ -269,6 +273,14 @@ void bp_start_validation_data_request() {
 
     // Primary: drive IDS Absinthe via authenticate/queue (Jun 29 path).
     // Direct NAC oracle KE stays broken (-42553) without IDS response handling.
+    // Drop any in-memory Absinthe session so this mint reads the spoof plist
+    // beepservd just wrote for this request.
+    Class sessionCls = %c(IDSValidationSession);
+    if ([sessionCls respondsToSelector:@selector(purgeCachedCertsForSubsystemMechanism:)]) {
+        LOG(@"Purging Absinthe certs for new spoof identity");
+        [sessionCls purgeCachedCertsForSubsystemMechanism:0];
+        [sessionCls purgeCachedCertsForSubsystemMechanism:1];
+    }
     bp_is_using_fallback_method = false;
     bp_schedule_primary_mint_timeout();
     LOG(@"IDS validation mint (authenticate/queue)");
